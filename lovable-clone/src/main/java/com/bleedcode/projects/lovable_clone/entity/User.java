@@ -1,9 +1,13 @@
 package com.bleedcode.projects.lovable_clone.entity;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 
+import org.apache.catalina.User;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -23,7 +27,7 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @Builder
 @Entity(name = "users")
-public class User {
+public class User implements UserDetails{
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
@@ -39,4 +43,10 @@ public class User {
     LocalDateTime updatedAt;
 
     LocalDateTime deletedAt; //soft delete
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getAuthorities'");
+    }
 }
