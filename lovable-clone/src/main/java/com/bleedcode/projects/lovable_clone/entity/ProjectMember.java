@@ -28,6 +28,7 @@ import lombok.experimental.FieldDefaults;
 @Builder
 @Table(name = "project_members")
 public class ProjectMember {
+
     @EmbeddedId
     ProjectMemberId id;
 
