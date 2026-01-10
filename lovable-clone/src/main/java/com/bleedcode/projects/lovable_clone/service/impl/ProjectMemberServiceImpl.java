@@ -4,9 +4,13 @@ import com.bleedcode.projects.lovable_clone.dto.member.InviteMemberRequest;
 import com.bleedcode.projects.lovable_clone.dto.member.MemberResponse;
 import com.bleedcode.projects.lovable_clone.dto.member.UpdateMemberRoleRequest;
 import com.bleedcode.projects.lovable_clone.entity.Project;
+import com.bleedcode.projects.lovable_clone.entity.ProjectMember;
+import com.bleedcode.projects.lovable_clone.entity.ProjectMemberId;
+import com.bleedcode.projects.lovable_clone.entity.User;
 import com.bleedcode.projects.lovable_clone.mapper.ProjectMemberMapper;
 import com.bleedcode.projects.lovable_clone.repository.ProjectMemberRepository;
 import com.bleedcode.projects.lovable_clone.repository.ProjectRepository;
+import com.bleedcode.projects.lovable_clone.repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -17,8 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 //import com.bleedcode.projects.lovable_clone.dto.project.ProjectRequest;
 //import com.bleedcode.projects.lovable_clone.entity.Project;
 import com.bleedcode.projects.lovable_clone.service.ProjectMemberService;
-import tools.jackson.databind.ObjectMapper;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,36 +34,101 @@ public class ProjectMemberServiceImpl implements ProjectMemberService {
 
     ProjectMemberRepository projectMemberRepository;
     ProjectRepository projectRepository;
+    UserRepository userRepository;
+
     ProjectMemberMapper projectMemberMapper;
 
     @Override
     public List<MemberResponse> getProjectMembers(Long projectId, Long userId) {
-        Project project = getAccessibleProjectById(projectId,userId);
+        Project project = getAccessibleProjectById(projectId, userId);
 
         List<MemberResponse> memberResponseList = new ArrayList<>();
-        memberResponseList.add(projectMemberMapper.toProjectMemberResponse(project.getOwner()));
+        memberResponseList.add(projectMemberMapper.toProjectMemberResponseFromOwner(project.getOwner()));
 
+        memberResponseList.addAll(
+                projectMemberRepository.findByIdProjectId(projectId)
+                .stream()
+                .map(projectMember -> projectMemberMapper.toProjectMemberResponseFromMember(projectMember))
+                .toList());
 
         return memberResponseList;
     }
 
     @Override
     public MemberResponse inviteMember(Long projectId, InviteMemberRequest request, Long userId) {
-        return null;
+        Project project = getAccessibleProjectById(projectId, userId);
+
+        if(!project.getOwner().getId().equals(userId))
+        {
+            throw new RuntimeException("Only Project Owner is allowed to invite members");
+        }
+
+        // invitee : person who is being invited
+        // invitor : person who is inviting
+
+        User invitee = userRepository.findByEmail(request.username()).orElseThrow();
+
+        if(invitee.getId().equals(userId))
+        {
+            throw new RuntimeException("Cannot invite yourself");
+        }
+
+        ProjectMemberId projectMemberId = new ProjectMemberId(projectId,invitee.getId());
+
+        if(projectMemberRepository.existsById(projectMemberId))
+        {
+            throw new RuntimeException("Member already invited");
+        }
+
+        ProjectMember member = ProjectMember.builder()
+                .id(projectMemberId)
+                .project(project)
+                .user(invitee)
+                .projectRole(request.role())
+                .invitedAt(Instant.now())
+                .build();
+        projectMemberRepository.save(member);
+
+        return projectMemberMapper.toProjectMemberResponseFromMember(member);
     }
 
     @Override
-    public MemberResponse updateMemberRole(Long projectId, Long memberId, UpdateMemberRoleRequest role, Long userId) {
-        return null;
+    public MemberResponse updateMemberRole(Long projectId, Long memberId, UpdateMemberRoleRequest request, Long userId) {
+
+        Project project = getAccessibleProjectById(projectId,userId);
+
+        if(!project.getOwner().getId().equals(userId))
+        {
+            throw new RuntimeException("Not allowed");
+        }
+
+        ProjectMemberId member = new ProjectMemberId(projectId,memberId);
+
+        ProjectMember projectMember = projectMemberRepository.findById(member).
+                orElseThrow();
+        projectMember.setProjectRole(request.role());
+        projectMemberRepository.save(projectMember);
+
+        return projectMemberMapper.toProjectMemberResponseFromMember(projectMember);
     }
 
     @Override
     public void removeProjectMember(Long projectId, Long memberId, Long userId) {
 
+        Project project = getAccessibleProjectById(projectId,userId);
+
+        if(!project.getOwner().getId().equals(userId))
+        {
+            throw new RuntimeException("user Not allowed to remove Project Member");
+        }
+
+        ProjectMemberId member = new ProjectMemberId(projectId,memberId);
+
+        projectMemberRepository.deleteById(member);
     }
 
     ///  Internal Utility Functions
-    private Project getAccessibleProjectById(Long projectId, Long userId){
-        return projectRepository.findAccessibleProjectById(projectId,userId).orElseThrow();
+    private Project getAccessibleProjectById(Long projectId, Long userId) {
+        return projectRepository.findAccessibleProjectById(projectId, userId).orElseThrow();
     }
 }
