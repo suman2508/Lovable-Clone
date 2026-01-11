@@ -19,7 +19,6 @@ public record ProjectResponse(
     String name,
     Boolean isPublic,
     Instant createdAt,
-    Instant updatedAt,
-    UserProfileResponse owner
+    Instant updatedAt
 ) {
 }

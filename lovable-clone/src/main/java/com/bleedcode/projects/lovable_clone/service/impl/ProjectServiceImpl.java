@@ -4,8 +4,13 @@ import com.bleedcode.projects.lovable_clone.dto.project.ProjectRequest;
 import com.bleedcode.projects.lovable_clone.dto.project.ProjectResponse;
 import com.bleedcode.projects.lovable_clone.dto.project.ProjectSummaryResponse;
 import com.bleedcode.projects.lovable_clone.entity.Project;
+import com.bleedcode.projects.lovable_clone.entity.ProjectMember;
+import com.bleedcode.projects.lovable_clone.entity.ProjectMemberId;
 import com.bleedcode.projects.lovable_clone.entity.User;
+import com.bleedcode.projects.lovable_clone.enums.ProjectRole;
+import com.bleedcode.projects.lovable_clone.error.ResourceNotFoundException;
 import com.bleedcode.projects.lovable_clone.mapper.ProjectMapper;
+import com.bleedcode.projects.lovable_clone.repository.ProjectMemberRepository;
 import com.bleedcode.projects.lovable_clone.repository.ProjectRepository;
 import com.bleedcode.projects.lovable_clone.repository.UserRepository;
 import com.bleedcode.projects.lovable_clone.service.ProjectService;
@@ -28,18 +33,33 @@ public class ProjectServiceImpl implements ProjectService {
     ProjectRepository projectRepository;
     UserRepository userRepository;
     ProjectMapper projectMapper;
+    ProjectMemberRepository projectMemberRepository;
 
     @Override
     public ProjectResponse createProject(ProjectRequest request, Long userId) {
 
         User owner = userRepository.findById(userId)
-                .orElseThrow();
+                .orElseThrow(
+                        ()->new ResourceNotFoundException("User",userId.toString())
+                );
         Project project = Project.builder()
                 .name(request.name())
-                .owner(owner)
                 .build();
 
         project = projectRepository.save(project);
+
+        ProjectMemberId projectMemberId = new ProjectMemberId(project.getId(), userId);
+        ProjectMember projectMember = ProjectMember.builder()
+                .id(projectMemberId)
+                .projectRole(ProjectRole.OWNER)
+                .project(project)
+                .user(owner)
+                .invitedAt(Instant.now())
+                .acceptedAt(Instant.now())
+                .build();
+
+        projectMemberRepository.save(projectMember);
+
         return projectMapper.toProjectResponse(project);
     }
 
@@ -65,8 +85,10 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public ProjectResponse updateProject(Long id, ProjectRequest request, Long userId) {
         Project project = getAccessibleProjectById(id,userId);
+
         project.setName(request.name());
         project = projectRepository.saveAndFlush(project);
+
         return projectMapper.toProjectResponse(project);
     }
 
@@ -74,18 +96,15 @@ public class ProjectServiceImpl implements ProjectService {
     public void softDelete(Long id, Long userId) {
 
         Project project = getAccessibleProjectById(id,userId);
-        if(!project.getOwner().getId().equals(userId))
-        {
-            throw new RuntimeException("This user is now allowed to delete !");
-        }
         project.setDeletedAt(Instant.now());
         projectRepository.save(project);
 
     }
 
     ///  Internal Helper Methods
-    private Project getAccessibleProjectById(Long id , Long userId)
+    private Project getAccessibleProjectById(Long projectId , Long userId)
     {
-        return projectRepository.findAccessibleProjectById(id,userId).orElseThrow();
+        return projectRepository.findAccessibleProjectById(projectId,userId).
+                orElseThrow(() -> new ResourceNotFoundException("Project",projectId.toString()));
     }
 }

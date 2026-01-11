@@ -4,8 +4,8 @@ import java.time.Instant;
 import com.bleedcode.projects.lovable_clone.enums.ProjectRole;
 
 public record MemberResponse(
-    Long userid,
-    Long username,
+    Long userId,
+    String username,
     String name,
     ProjectRole projectRole,
     Instant invitedAt
