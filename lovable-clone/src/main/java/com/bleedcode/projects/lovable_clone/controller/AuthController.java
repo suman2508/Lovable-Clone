@@ -25,8 +25,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 @FieldDefaults(makeFinal = true, level = lombok.AccessLevel.PRIVATE)
 public class AuthController {
 
-    private AuthService authService;
-    private UserService userService;
+    AuthService authService;
+    UserService userService;
 
     @PostMapping("/signup")   
     public ResponseEntity<AuthResponse> signup(@RequestBody SignupRequest request) {
