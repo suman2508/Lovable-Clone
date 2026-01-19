@@ -3,9 +3,13 @@ package com.bleedcode.projects.lovable_clone.security;
 
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Date;
 
 import javax.crypto.SecretKey;
 
+import com.bleedcode.projects.lovable_clone.entity.User;
+import io.jsonwebtoken.Jwts;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -23,28 +27,34 @@ public class AuthUtil {
     }
 
     public String generateAccessToken(User user){
-        return Jwts;
+        return Jwts.builder()
+                .setSubject(user.getUsername())
+                .claim("userId", user.getId().toString())
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 1000*60*10))
+                .signWith(getSecretKey())
+                .compact();
     }
 
-    public JwtUserPrincipal verifyAccessToken(String token){
-        
-            Claims claims = Jwts.parser()
-                .verifyWith(getSecretKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+//    public JwtUserPrincipal verifyAccessToken(String token){
+//
+//            Claims claims = Jwts.parser()
+//                .verifyWith(getSecretKey())
+//                .build()
+//                .parseSignedClaims(token)
+//                .getPayload();
+//
+//            Long userId = Long.parseLong(claims.getSubject());
+//            String username = claims.get("username", String.class);
+//
+//            Long userId = Long.parseLong(claims.get());
+//            return new JwtUserPrincipal(userId, username,new ArrayList<>());
+//    }
+//
+//    public Long getCurrentUserId(){
+//        JwtUserPrincipal principal = (JwtUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+//        return principal.getId();
+//    }
 
-            Long userId = Long.parseLong(claims.getSubject());
-            String username = claims.get("username", String.class);
-
-            Long userId = Long.parseLong(claims.get());
-            return new JwtUserPrincipal(userId, username,new ArrayList<>());
-    }
-
-    public Long getCurrentUserId(){
-        JwtUserPrincipal principal = (JwtUserPrincipal) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return principal.getId();
-    }   
-    
 
 }
